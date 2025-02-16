@@ -61,11 +61,14 @@ Undo Action (Ctrl + Z)
 Ensure that these shortcut keys function correctly.
 
 ## Features
-- NIMA Score (Need to Impleemnt)
+- Photo Quality Score (Need to Integrate)
 - Instagram Filters
-- Super-Resolution
-- Human Segmentation (Need to Intergrate)
-- Inpainting (Need to Implement)
+- Super-Resolution Real-ESRGAN
+- Human Segmentation U2Net (Need to Intergrate)
+- Inpainting ControlNet & LAMA (Need to Integrate)
+- Anomly Detection PatchCore/ Fastflow
+- Deep Image Harmonization
+
 
 
 
