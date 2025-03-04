@@ -6,7 +6,7 @@ from ultralytics import YOLO
 model = YOLO("yolov8x.pt")
 
 # Parameters for grouping
-DISTANCE_THRESHOLD = 100  # Maximum center distance in pixels
+DISTANCE_THRESHOLD = 30000  # Maximum center distance in pixels
 IOU_THRESHOLD = 0.2  # IoU threshold to consider boxes as close
 
 
