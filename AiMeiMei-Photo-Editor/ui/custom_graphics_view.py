@@ -13,6 +13,9 @@ from providers.sam_model_provider import SAMModelProvider
 class CustomGraphicsView(QGraphicsView):
     def __init__(self):
         super().__init__()
+        self.undo_callback = None  # This will be set by MainWindow
+        self._undo_state_saved_current_action = False  # Ensure one save per action
+
         self.scene = QGraphicsScene()
         self.setScene(self.scene)
 
@@ -60,7 +63,180 @@ class CustomGraphicsView(QGraphicsView):
         self.clone_stamp_overlay = None
         self.clone_source_overlay = None
 
-        # Removed score_update_callback since real-time update is managed by MainWindow
+    def get_state(self):
+        """Return a dictionary capturing the complete state of the view."""
+        state = {}
+        # Save core properties
+        state['mode'] = self.mode
+        state['positive_points'] = list(self.positive_points)
+        state['negative_points'] = list(self.negative_points)
+        state['selection_mask'] = np.copy(self.selection_mask) if self.selection_mask is not None else None
+        state['image_shape'] = self.image_shape
+        state['current_cv_image'] = np.copy(self.current_cv_image) if self.current_cv_image is not None else None
+        state['detection_cv_image'] = np.copy(self.detection_cv_image) if self.detection_cv_image is not None else None
+        state['display_cv_image'] = np.copy(self.display_cv_image) if self.display_cv_image is not None else None
+        state['sam_cv_image'] = np.copy(self.sam_cv_image) if self.sam_cv_image is not None else None
+        state['sam_cv_image_rgb'] = np.copy(self.sam_cv_image_rgb) if self.sam_cv_image_rgb is not None else None
+        state['quick_select_brush_size'] = self.quick_select_brush_size
+        state['clone_stamp_brush_size'] = self.clone_stamp_brush_size
+        state['clone_source_point'] = self.clone_source_point
+        state['clone_offset'] = self.clone_offset
+        state['dragging'] = self.dragging
+
+        # Save background pixmap info
+        if self.background_pixmap_item is not None and self.background_pixmap_item.pixmap() is not None:
+            state['background_pixmap'] = self.background_pixmap_item.pixmap().copy()
+            state['background_position'] = self.background_pixmap_item.pos()
+        else:
+            state['background_pixmap'] = None
+            state['background_position'] = None
+
+        # Save selected pixmap (the transient selection overlay)
+        if self.selected_pixmap_item is not None and self.selected_pixmap_item.pixmap() is not None:
+            state['selected_pixmap'] = self.selected_pixmap_item.pixmap().copy()
+            state['selected_position'] = self.selected_pixmap_item.pos()
+        else:
+            state['selected_pixmap'] = None
+            state['selected_position'] = None
+
+        # Save detection overlay info
+        if self.detection_overlay_item is not None and self.detection_overlay_item.pixmap() is not None:
+            state['detection_overlay_pixmap'] = self.detection_overlay_item.pixmap().copy()
+            state['detection_overlay_position'] = self.detection_overlay_item.pos()
+        else:
+            state['detection_overlay_pixmap'] = None
+            state['detection_overlay_position'] = None
+
+        # Save quick selection overlay geometry
+        if self.quick_selection_overlay is not None:
+            state['quick_selection_rect'] = self.quick_selection_overlay.rect()
+        else:
+            state['quick_selection_rect'] = None
+
+        # Save clone stamp overlays geometry
+        if self.clone_stamp_overlay is not None:
+            state['clone_stamp_rect'] = self.clone_stamp_overlay.rect()
+        else:
+            state['clone_stamp_rect'] = None
+
+        if self.clone_source_overlay is not None:
+            state['clone_source_rect'] = self.clone_source_overlay.rect()
+        else:
+            state['clone_source_rect'] = None
+
+        # Save the current view transformation
+        state['view_transform'] = self.transform()
+
+        return state
+
+    def set_state(self, state):
+        """Restore the state from the given dictionary."""
+        self.mode = state.get('mode', "transform")
+        self.positive_points = state.get('positive_points', [])
+        self.negative_points = state.get('negative_points', [])
+        if state.get('selection_mask') is not None:
+            self.selection_mask = np.copy(state['selection_mask'])
+        elif self.current_cv_image is not None:
+            h, w = self.current_cv_image.shape[:2]
+            self.selection_mask = np.zeros((h, w), dtype=np.uint8)
+        else:
+            self.selection_mask = None
+
+        self.image_shape = state.get('image_shape')
+        self.current_cv_image = np.copy(state.get('current_cv_image')) if state.get(
+            'current_cv_image') is not None else None
+        self.detection_cv_image = np.copy(state.get('detection_cv_image')) if state.get(
+            'detection_cv_image') is not None else None
+        self.display_cv_image = np.copy(state.get('display_cv_image')) if state.get(
+            'display_cv_image') is not None else None
+        self.sam_cv_image = np.copy(state.get('sam_cv_image')) if state.get('sam_cv_image') is not None else None
+        self.sam_cv_image_rgb = np.copy(state.get('sam_cv_image_rgb')) if state.get(
+            'sam_cv_image_rgb') is not None else None
+        self.quick_select_brush_size = state.get('quick_select_brush_size', 5)
+        self.clone_stamp_brush_size = state.get('clone_stamp_brush_size', 5)
+        self.clone_source_point = state.get('clone_source_point')
+        self.clone_offset = state.get('clone_offset')
+        self.dragging = state.get('dragging', False)
+
+        # Restore background pixmap item
+        if state.get('background_pixmap') is not None:
+            pixmap = state.get('background_pixmap')
+            # Recreate the background item to avoid using deleted objects
+            if self.background_pixmap_item is not None:
+                self.scene.removeItem(self.background_pixmap_item)
+            from PyQt6.QtWidgets import QGraphicsPixmapItem
+            self.background_pixmap_item = QGraphicsPixmapItem(pixmap)
+            self.scene.addItem(self.background_pixmap_item)
+            if state.get('background_position') is not None:
+                self.background_pixmap_item.setPos(state.get('background_position'))
+        else:
+            self.background_pixmap_item = None
+
+        # Restore selected pixmap item
+        if state.get('selected_pixmap') is not None:
+            pixmap = state.get('selected_pixmap')
+            if self.selected_pixmap_item is not None:
+                self.scene.removeItem(self.selected_pixmap_item)
+            from PyQt6.QtWidgets import QGraphicsPixmapItem
+            self.selected_pixmap_item = QGraphicsPixmapItem(pixmap)
+            self.scene.addItem(self.selected_pixmap_item)
+            if state.get('selected_position') is not None:
+                self.selected_pixmap_item.setPos(state.get('selected_position'))
+        else:
+            self.selected_pixmap_item = None
+
+        # Restore detection overlay item
+        if state.get('detection_overlay_pixmap') is not None:
+            pixmap = state.get('detection_overlay_pixmap')
+            if self.detection_overlay_item is not None:
+                self.scene.removeItem(self.detection_overlay_item)
+            from PyQt6.QtWidgets import QGraphicsPixmapItem
+            self.detection_overlay_item = QGraphicsPixmapItem(pixmap)
+            self.scene.addItem(self.detection_overlay_item)
+            if state.get('detection_overlay_position') is not None:
+                self.detection_overlay_item.setPos(state.get('detection_overlay_position'))
+        else:
+            self.detection_overlay_item = None
+
+        # Restore quick selection overlay
+        if state.get('quick_selection_rect') is not None:
+            if self.quick_selection_overlay is None:
+                from PyQt6.QtWidgets import QGraphicsEllipseItem
+                self.quick_selection_overlay = QGraphicsEllipseItem()
+                self.scene.addItem(self.quick_selection_overlay)
+            self.quick_selection_overlay.setRect(state.get('quick_selection_rect'))
+        else:
+            if self.quick_selection_overlay is not None:
+                self.scene.removeItem(self.quick_selection_overlay)
+                self.quick_selection_overlay = None
+
+        # Restore clone stamp overlay
+        if state.get('clone_stamp_rect') is not None:
+            if self.clone_stamp_overlay is None:
+                from PyQt6.QtWidgets import QGraphicsEllipseItem
+                self.clone_stamp_overlay = QGraphicsEllipseItem()
+                self.scene.addItem(self.clone_stamp_overlay)
+            self.clone_stamp_overlay.setRect(state.get('clone_stamp_rect'))
+        else:
+            if self.clone_stamp_overlay is not None:
+                self.scene.removeItem(self.clone_stamp_overlay)
+                self.clone_stamp_overlay = None
+
+        # Restore clone source overlay
+        if state.get('clone_source_rect') is not None:
+            if self.clone_source_overlay is None:
+                from PyQt6.QtWidgets import QGraphicsEllipseItem
+                self.clone_source_overlay = QGraphicsEllipseItem()
+                self.scene.addItem(self.clone_source_overlay)
+            self.clone_source_overlay.setRect(state.get('clone_source_rect'))
+        else:
+            if self.clone_source_overlay is not None:
+                self.scene.removeItem(self.clone_source_overlay)
+                self.clone_source_overlay = None
+
+        # Restore view transformation (zoom, pan)
+        if state.get('view_transform') is not None:
+            self.setTransform(state.get('view_transform'))
 
     def apply_contrast_and_sharpen(self, image):
         contrast_image = cv2.convertScaleAbs(image, alpha=1.3, beta=0)
@@ -202,9 +378,18 @@ class CustomGraphicsView(QGraphicsView):
                 self.clone_source_overlay = None
             self.clone_offset = None
 
+    def _maybe_save_undo_state(self):
+        if not self._undo_state_saved_current_action and self.undo_callback is not None:
+            self.undo_callback()  # Save current state via the callback
+            self._undo_state_saved_current_action = True
+
     def mousePressEvent(self, event):
+        # Reset the flag at the beginning of a new mouse action
+        self._undo_state_saved_current_action = False
         pos = self.mapToScene(event.pos())
+
         if self.mode == "object selection":
+            self._maybe_save_undo_state()
             if event.button() == Qt.MouseButton.LeftButton:
                 self.positive_points.append([pos.x(), pos.y()])
                 print(f"Added positive point: ({pos.x()}, {pos.y()})")
@@ -212,10 +397,14 @@ class CustomGraphicsView(QGraphicsView):
                 self.negative_points.append([pos.x(), pos.y()])
                 print(f"Added negative point: ({pos.x()}, {pos.y()})")
             self.object_selection()
+
         elif self.mode == "quick selection":
+            self._maybe_save_undo_state()
             self._quick_select_at_position(pos, event.button())
             self._update_quick_selection_overlay(pos)
+
         elif self.mode == "clone stamp":
+            self._maybe_save_undo_state()
             if event.button() == Qt.MouseButton.RightButton:
                 offset = self.background_pixmap_item.pos()
                 sample_x = int(pos.x() - offset.x())
@@ -236,13 +425,22 @@ class CustomGraphicsView(QGraphicsView):
                     print(f"Clone offset computed as: {self.clone_offset}")
                 self._clone_stamp_at_position(pos)
                 self._update_clone_stamp_overlay(pos)
+
         elif self.mode == "transform" and self.selected_pixmap_item:
+            self._maybe_save_undo_state()
             self.dragging = True
             self.drag_start = pos
+
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         pos = self.mapToScene(event.pos())
+
+        # For any interactive mode, call undo save once if not already done
+        if self.mode in ["quick selection", "clone stamp", "object selection",
+                         "transform"] and not self._undo_state_saved_current_action:
+            self._maybe_save_undo_state()
+
         if self.mode == "quick selection" and event.buttons() in [Qt.MouseButton.LeftButton,
                                                                   Qt.MouseButton.RightButton]:
             if event.buttons() & Qt.MouseButton.LeftButton:
@@ -250,9 +448,11 @@ class CustomGraphicsView(QGraphicsView):
             elif event.buttons() & Qt.MouseButton.RightButton:
                 self._quick_select_at_position(pos, Qt.MouseButton.RightButton)
             self._update_quick_selection_overlay(pos)
+
         elif self.mode == "clone stamp" and (event.buttons() & Qt.MouseButton.LeftButton):
             self._clone_stamp_at_position(pos)
             self._update_clone_stamp_overlay(pos)
+
         elif self.dragging and self.selected_pixmap_item:
             delta = pos - self.drag_start
             self.selected_pixmap_item.moveBy(delta.x(), delta.y())
@@ -262,11 +462,14 @@ class CustomGraphicsView(QGraphicsView):
                 self._update_quick_selection_overlay(pos)
             if self.mode == "clone stamp":
                 self._update_clone_stamp_overlay(pos)
+
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = False
+        # Reset the flag at the end of the action so the next action can be saved.
+        self._undo_state_saved_current_action = False
         super().mouseReleaseEvent(event)
 
     def wheelEvent(self, event):
@@ -345,6 +548,7 @@ class CustomGraphicsView(QGraphicsView):
             self.selected_pixmap_item = None
         for item in self.selection_feedback_items:
             self.scene.removeItem(item)
+
         self.selection_feedback_items = []
 
         # Preserve the original alpha from display_cv_image

@@ -36,6 +36,8 @@ from providers.score_provider import calculate_photo_score
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.undo_stack = []  # List to store previous image states
+        self.max_undo = 10  # Maximum history size
         self.current_file = None
         self.mode_buttons = {}
         self.detection_enabled = False
@@ -88,6 +90,7 @@ class MainWindow(QMainWindow):
 
         # Center Image View
         self.view = CustomGraphicsView()
+        self.view.undo_callback = self.save_undo_state
         self.view.score_update_callback = None
 
         # Right Filter Panel
@@ -469,6 +472,7 @@ class MainWindow(QMainWindow):
         file_dialog = QFileDialog()
         image_file, _ = file_dialog.getOpenFileName(self, "Open Image", "", "Image Files (*.png *.jpg *.bmp)")
         if image_file:
+            self.undo_stack.clear()
             self.view.load_image(image_file)
             self.current_file = image_file
             self.filter_panel.refresh_thumbnails()
@@ -489,6 +493,30 @@ class MainWindow(QMainWindow):
         if file_path:
             self.view.save(file_path)
 
+    def save_undo_state(self):
+        """Save a snapshot of the complete CustomGraphicsView state."""
+        state = self.view.get_state()
+        self.undo_stack.append(state)
+        if len(self.undo_stack) > self.max_undo:
+            self.undo_stack.pop(0)
+
+    def undo_action(self):
+        """Revert to the most recent saved state of the view."""
+        if self.undo_stack:
+            state = self.undo_stack.pop()
+            self.view.set_state(state)
+            # Refresh internal image conversions and overlays
+            self.view.update_all_cv_image_conversions()
+            self.view.update_display()  # Redraw overlays including the selection mask
+            QMessageBox.information(self, "Undo", "Undo applied.")
+            if self.detection_enabled:
+                self.toggle_detection_action()
+                self.toggle_detection_action()
+            self.update_score()
+
+        else:
+            QMessageBox.information(self, "Undo", "No undo history available.")
+
     def create_menu_bar(self):
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
@@ -501,6 +529,13 @@ class MainWindow(QMainWindow):
         save_as_action = QAction("Save As", self)
         save_as_action.triggered.connect(self.save_image_as)
         file_menu.addAction(save_as_action)
+
+        # Add an Edit menu with Undo action
+        edit_menu = menubar.addMenu("Edit")
+        undo_act = QAction("Undo", self)
+        undo_act.setShortcut("Ctrl+Z")
+        undo_act.triggered.connect(self.undo_action)
+        edit_menu.addAction(undo_act)
 
     def adjustSize(self):
         screen = QApplication.primaryScreen().availableGeometry()
@@ -721,6 +756,7 @@ class MainWindow(QMainWindow):
             self.score_label.setText("Aesthetic Score: N/A | Position: N/A | Angle: N/A | Lighting: N/A | Focus: N/A")
 
     def update_lighting(self):
+
         if not hasattr(self.view, 'current_cv_image') or self.view.current_cv_image is None:
             return
 
@@ -728,6 +764,9 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Lightning",
                                 "A selection exists. Apply merge before adjusting lighting..")
             return
+
+        self.save_undo_state()
+
         brightness = self.lighting_brightness_slider.value() / 100.0
         contrast = self.lighting_contrast_slider.value() / 100.0
         gamma = self.lighting_gamma_slider.value() / 100.0
@@ -753,6 +792,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Sharpening",
                                 "A selection exists. Apply merge before sharpening.")
             return
+        self.save_undo_state()
+
         sharpen_amount = self.sharpen_slider.value() / 10.0
         image = self.view.current_cv_image.astype(np.float32)
         blurred = cv2.GaussianBlur(image, (0, 0), sigmaX=3)
@@ -775,6 +816,10 @@ class MainWindow(QMainWindow):
         if self.view.selection_mask is not None and np.count_nonzero(self.view.selection_mask) > 0:
             QMessageBox.warning(self, "4k Resolution", "A selection exists. Apply merge before upscaling.")
             return
+        if self.action_in_progress:
+            return
+        self.action_in_progress = True
+        self.save_undo_state()
         try:
             current_image = self.view.current_cv_image.copy()
             if current_image.shape[2] == 4:
@@ -804,6 +849,7 @@ class MainWindow(QMainWindow):
                 self.toggle_detection_action()
         except Exception as e:
             QMessageBox.critical(self, "Upscale Error", f"An error occurred during upscaling: {str(e)}")
+        self.action_in_progress = False
 
     def u2net_auto_action(self):
         if self.action_in_progress:
@@ -812,6 +858,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Auto Salient Object",
                                 "A selection already exists. Apply merge before selecting a new object.")
             return
+        self.save_undo_state()
         self.action_in_progress = True
         try:
             if not hasattr(self.view, 'current_cv_image') or self.view.current_cv_image is None:
@@ -835,6 +882,7 @@ class MainWindow(QMainWindow):
             self.action_in_progress = False
 
     def apply_action(self):
+        self.save_undo_state()
         saved_callback = self.view.score_update_callback
         self.view.score_update_callback = None
         self.view.apply_merge()
@@ -862,6 +910,10 @@ class MainWindow(QMainWindow):
         if not hasattr(self.view, 'current_cv_image') or self.view.current_cv_image is None:
             QMessageBox.warning(self, "Lama Inpaint", "No image loaded for inpainting.")
             return
+        if self.action_in_progress:
+            return
+        self.action_in_progress = True
+        self.save_undo_state()
         try:
             cv_img = self.view.current_cv_image
 
@@ -915,11 +967,16 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             QMessageBox.critical(self, "Lama Inpaint Error", f"An error occurred during inpainting:\n{str(e)}")
+        self.action_in_progress = False
 
     def control_net_action(self):
         if not hasattr(self.view, 'current_cv_image') or self.view.current_cv_image is None:
             QMessageBox.warning(self, "Control Net", "No image loaded for processing.")
             return
+        if self.action_in_progress:
+            return
+        self.action_in_progress = True
+        self.save_undo_state()
         cv_img = self.view.current_cv_image
         if len(cv_img.shape) == 3:
             if cv_img.shape[2] == 3:
@@ -967,6 +1024,8 @@ class MainWindow(QMainWindow):
             self.view.background_pixmap_item.setPixmap(pixmap)
             result_np = cv2.cvtColor(np.array(result), cv2.COLOR_RGB2BGR)
             self.view.current_cv_image = result_np
+            self.view.update_all_cv_image_conversions()
+
             QMessageBox.information(self, "Control Net", "Control Net processing completed.")
             del pipe
             torch.cuda.empty_cache()
@@ -976,6 +1035,7 @@ class MainWindow(QMainWindow):
                 self.toggle_detection_action()
         except Exception as e:
             QMessageBox.critical(self, "Control Net Error", f"An error occurred: {str(e)}")
+        self.action_in_progress = False
 
 
 if __name__ == "__main__":

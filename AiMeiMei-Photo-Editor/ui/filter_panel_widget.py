@@ -147,6 +147,9 @@ class FilterPanelWidget(QWidget):
 
     def OnFilterSelect(self):
         """Apply the selected filter as a live preview using the current base image."""
+        if self.view.undo_callback is not None:
+            self.view.undo_callback()
+
         button = self.sender()
         filterName = button.objectName()
         filterFunction = self.available_filters.get(filterName)
