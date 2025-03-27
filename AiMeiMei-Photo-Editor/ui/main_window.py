@@ -864,6 +864,7 @@ class MainWindow(QMainWindow):
             if not hasattr(self.view, 'current_cv_image') or self.view.current_cv_image is None:
                 QMessageBox.warning(self, "Auto Salient Object", "No image loaded.")
                 return
+
             threshold_value = self.u2net_threshold_spin.value()
             img_for_u2net = self.view.current_cv_image
             if img_for_u2net.shape[2] == 4:
