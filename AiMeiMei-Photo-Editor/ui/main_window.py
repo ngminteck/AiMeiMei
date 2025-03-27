@@ -92,6 +92,7 @@ class MainWindow(QMainWindow):
         self.view = CustomGraphicsView()
         self.view.undo_callback = self.save_undo_state
         self.view.score_update_callback = None
+        self.view.detection_update_callback = self.update_detection
 
         # Right Filter Panel
         self.filter_panel = FilterPanelWidget(self.view)
