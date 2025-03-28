@@ -3,7 +3,7 @@ import numpy as np
 from ultralytics import YOLO
 
 # Load the YOLOv8x model (load it once for reuse)
-yolo_model = YOLO("yolov8x.pt")
+yolo_model = YOLO("yolo11l.pt")
 
 def compute_iou(box1, box2):
     x1 = max(box1[0], box2[0])

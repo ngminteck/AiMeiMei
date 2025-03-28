@@ -3,7 +3,7 @@ import numpy as np
 from ultralytics import YOLO
 
 # Use YOLOv8x for improved detection capabilities
-model = YOLO("yolov8x.pt")
+model = YOLO("yolo11l.pt")
 
 # Parameters for grouping
 DISTANCE_THRESHOLD = 30000  # Maximum center distance in pixels
