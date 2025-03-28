@@ -12,6 +12,7 @@ To get started, first install the required dependencies:
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 pip install opencv-python numpy onnxruntime-gpu PyQt6 ultralytics diffusers realesrgan
+pip install git+https://github.com/facebookresearch/segment-anything.git
 pip install simple-lama-inpainting
 ```
 
