@@ -3,7 +3,7 @@ import screeninfo
 import os
 from datetime import datetime
 from detector import detect_main_object  # Import main object detection
-from score import calculate_photo_score, save_photo_score  # Import scoring functions
+from score import calculate_photo_score  # Import scoring functions
 
 
 def draw_camera_grid(frame):
@@ -30,7 +30,6 @@ def save_photo(raw_frame, score_data):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"captured_photos/photo_{timestamp}.jpg"
     cv2.imwrite(filename, raw_frame)
-    save_photo_score(filename, score_data)
     print(f"Photo saved as: {filename} with score {score_data['Final Score']}")
 
 
@@ -74,12 +73,11 @@ while True:
     # Display score & feedback
     draw_text(display_frame, f"Overall Score: {score_data['Final Score']}/10", (50, 50), font_scale=1.5,
               color=(0, 255, 0))
-    draw_text(display_frame, f"Position: {score_data['Position']}/10", (50, 100), font_scale=1, color=(0, 255, 255))
-    draw_text(display_frame,
-              f"Angle: {score_data['Angle']}/10 | Lighting: {score_data['Lighting']}/10 | Focus: {score_data['Focus']}/10",
-              (50, 150), font_scale=1, color=(0, 255, 255))
+    draw_text(display_frame, f"Position: {score_data['Position']}/10 | Angle: {score_data['Angle']}/10", (50, 100), font_scale=1, color=(0, 255, 255))
+    draw_text(display_frame,f"Brightness: {score_data['Brightness']}/10 | Sharpness: {score_data['Sharpness']}/10",(50, 150), font_scale=1, color=(0, 255, 255))
+    draw_text(display_frame, f"Colorfulness: {score_data['Colorfulness']}/10 | Contrast: {score_data['Contrast']}/10 | Noisiness: {score_data['Noisiness']}/10",(50, 200), font_scale=1, color=(0, 255, 255))
 
-    y_offset = 200
+    y_offset = 250
     for feedback in score_data["Suggestions"][:3]:  # Show only top 3 suggestions
         draw_text(display_frame, feedback, (50, y_offset), font_scale=0.8, color=(0, 0, 255))
         y_offset += 30
