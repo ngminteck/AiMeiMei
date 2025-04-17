@@ -23,7 +23,7 @@ pip install simple-lama-inpainting
 ## Model Files
 Download necessary AI model files from the following link:
 
-[📥 Download Models](https://drive.google.com/file/d/1eAkHmECybleSKRHGUeW18ffv8KV4AFXA/view?usp=sharing)
+[📥 Download Models](https://drive.google.com/file/d/1FO4ATC3l8Nfq-KXi0yXQfv8IAKvFJpX9/view?usp=sharing)
 
 Extract and place these model files in the appropriate directory as specified in the application documentation.
 
