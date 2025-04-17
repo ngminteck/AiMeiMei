@@ -3,7 +3,22 @@
 ![AI Image Editor Screenshot](image.png)
 
 ## Introduction
-AI Image Editor is an intuitive application leveraging state-of-the-art AI models to enable advanced image editing functionalities like human segmentation, AI-powered inpainting, aesthetic scoring, and realism scoring in a user-friendly interface built with Python and PyQt.
+AiMeiMei Photo Editor is an AI-driven desktop application that empowers users to enhance and restore outdoor photos with intelligent tools. Built for usability and high-quality output, this editor integrates multiple advanced computer vision models to automate the image editing workflow.
+
+✨ Key Features:
+🎯 Human segmentation using U²-Net for precise subject extraction.
+
+🖼️ AI inpainting powered by LaMa and ControlNet to fill or extend missing or unwanted regions.
+
+🔍 Artifact detection and correction using FastFlow.
+
+🌈 Seamless blending with Deep Image Harmonization for natural-looking edits.
+
+🧵 High-resolution output with Real-ESRGAN to upscale and enhance texture quality.
+
+📈 Aesthetic and realism scoring using pretrained models to provide objective feedback on edit quality.
+
+Whether you're fixing artifacts, removing photobombers, or extending a scenic background, AiMeiMei Photo Editor offers an end-to-end solution for clean, professional results with minimal manual effort.
 
 ## Installation
 
