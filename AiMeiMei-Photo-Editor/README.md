@@ -40,10 +40,17 @@ Ensure your environment supports CUDA before installation.
 - Advanced AI-powered inpainting using **LaMa** and **ControlNet**
 - Lighting adjustments, such as brightness, shadows, or contrast with **OpenCV**
 - Photo filters powered by Pillgram
-- Real-time guidance and suggestions for improving photo quality (e.g., optimal positioning of the main subject)
+- Real-time guidance and suggestions for improving photo quality using **SPAQ** and position with **Yolo**(e.g., optimal positioning of the main subject) 
 
 ## Credit
-
+- [SPAQ](https://github.com/h4nwei/SPAQ)
+- [Yolo](https://github.com/ultralytics/ultralytics)
+- [U2NET](https://github.com/xuebinqin/U-2-Net)
+- [SAM](https://github.com/facebookresearch/segment-anything)
+- [RealESRGAN](https://github.com/xinntao/Real-ESRGAN)
+- [LaMa](https://github.com/advimman/lama)
+- [Simple LaMa](https://github.com/enesmsahin/simple-lama-inpainting)
+- [ControlNet](https://huggingface.co/docs/diffusers/en/using-diffusers/controlnet)
 
 
 
