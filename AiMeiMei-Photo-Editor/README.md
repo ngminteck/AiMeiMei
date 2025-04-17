@@ -66,8 +66,7 @@ Ensure your environment supports CUDA before installation.
 - [LaMa](https://github.com/advimman/lama)
 - [Simple LaMa](https://github.com/enesmsahin/simple-lama-inpainting)
 - [ControlNet](https://huggingface.co/docs/diffusers/en/using-diffusers/controlnet)
-
-
+- Pranav and Makarand for provide guide to implement PyQt
 
 
 
