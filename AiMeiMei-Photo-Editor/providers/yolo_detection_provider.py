@@ -16,7 +16,7 @@ def compute_iou(box1, box2):
     union_area = box1_area + box2_area - inter_area
     return inter_area / union_area if union_area else 0
 
-def are_close(box1, box2, distance_threshold=20000, iou_threshold=0.2):
+def are_close(box1, box2, distance_threshold=10000, iou_threshold=0.2):
     # Compute center points
     x1, y1, x2, y2 = box1
     bx1, by1, bx2, by2 = box2
@@ -42,6 +42,9 @@ def detect_objects(frame, alpha_channel=None, transparency_threshold=128):
     detected_objects = []
     for result in results:
         for box in result.boxes:
+            confidence = float(box.conf[0])
+            if confidence < 0.8:
+                continue
             # Get bounding box coordinates
             x1, y1, x2, y2 = map(int, box.xyxy[0])
             # If an alpha_channel is provided, filter out detections that are mostly transparent.
@@ -59,7 +62,6 @@ def detect_objects(frame, alpha_channel=None, transparency_threshold=128):
                     mean_alpha = np.mean(region)
                     if mean_alpha < transparency_threshold:
                         continue  # Skip this detection if the region is mostly transparent.
-            confidence = float(box.conf[0])
             class_id = int(box.cls[0]) if hasattr(box, 'cls') else None
             label = yolo_model.names[class_id] if class_id is not None else "object"
             detected_objects.append({

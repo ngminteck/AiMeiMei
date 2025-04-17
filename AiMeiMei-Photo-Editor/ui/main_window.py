@@ -50,10 +50,10 @@ class MainWindow(QMainWindow):
         # Separate timers:
         self.detection_timer = QTimer(self)
         self.detection_timer.timeout.connect(self.safe_update_detection)
-        self.detection_timer.start(30000)  # every 30 second
+        self.detection_timer.start(5000)  # every 5 second
         self.score_timer = QTimer(self)
         self.score_timer.timeout.connect(self.safe_update_score)
-        self.score_timer.start(30000)  # every 30 second
+        self.score_timer.start(5000)  # every 5 second
 
     def initUI(self):
         self.setWindowTitle("Image Editor")
@@ -73,8 +73,18 @@ class MainWindow(QMainWindow):
     def init_top_section(self, parent_layout):
         top_widget = QWidget()
         top_layout = QHBoxLayout(top_widget)
-        self.score_label = QLabel("Aesthetic Score: N/A | Position: N/A | Angle: N/A | Lighting: N/A | Focus: N/A")
+
+        # Create the QLabel first
+        self.score_label = QLabel()
+
+        # Set the initial text
+        text = (
+            "Final Score: N/A | Position: N/A | Angle: N/A | Sharpness: N/A\n"
+            "Brightness: N/A | Colorfulness: N/A | Contrast: N/A | Noisiness: N/A\n"
+        )
+        self.score_label.setText(text)
         self.score_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         top_layout.addWidget(self.score_label)
         parent_layout.addWidget(top_widget, 5)
 
@@ -722,39 +732,35 @@ class MainWindow(QMainWindow):
 
     def update_score(self):
         try:
-            if self.view.detection_cv_image is not None:
-                frame = self.view.detection_cv_image
-            else:
-                frame = self.view.current_cv_image
-
+            frame = self.view.detection_cv_image if self.view.detection_cv_image is not None else self.view.current_cv_image
             if frame is None or len(frame.shape) < 3:
-                self.score_label.setText("Aesthetic Score: N/A | Position: N/A | Angle: N/A | Lighting: N/A | Focus: N/A")
+                text = (
+                    "Final Score: N/A | Position: N/A | Angle: N/A | Sharpness: N/A\n"
+                    "Brightness: N/A | Colorfulness: N/A | Contrast: N/A | Noisiness: N/A\n"
+                )
+                self.score_label.setText(text)
                 return
 
-            if frame.shape[2] == 4:
-                frame_for_score = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-            else:
-                frame_for_score = frame
-
-            objects = detect_objects(frame_for_score)
-            if objects:
-                grouped_clusters = group_objects(objects)
-                focus_object = select_focus_object(grouped_clusters, frame_for_score.shape)
-            else:
-                focus_object = None
-
-            score_data = calculate_photo_score(frame_for_score, [focus_object] if focus_object else [])
-            new_text = (
-                f"Aesthetic Score: {score_data['Final Score']} | "
-                f"Position: {score_data['Position']} | "
-                f"Angle: {score_data['Angle']} | "
-                f"Lighting: {score_data['Lighting']} | "
-                f"Focus: {score_data['Focus']}"
+            # If frame has alpha channel, separate it
+            has_alpha = (frame.ndim == 3 and frame.shape[2] == 4)
+            alpha_channel = frame[:, :, 3] if has_alpha else None
+            if has_alpha:
+                # Convert BGRA -> BGR
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+            objects = detect_objects(frame, alpha_channel)
+            score_data = calculate_photo_score(frame, objects)
+            text = (
+                f"Final Score: {score_data['Final Score']:.2f} | Position: {score_data['Position']:.2f} | Angle: {score_data['Angle']:.2f} | Sharpness: {score_data['Sharpness']:.2f}\n"
+                f"Brightness: {score_data['Brightness']:.2f} | Colorfulness: {score_data['Colorfulness']:.2f} | Contrast: {score_data['Contrast']:.2f} | Noisiness: {score_data['Noisiness']:.2f}\n"
             )
-            self.score_label.setText(new_text)
+            self.score_label.setText(text)
         except Exception as e:
             print("Error in update_score:", e)
-            self.score_label.setText("Aesthetic Score: N/A | Position: N/A | Angle: N/A | Lighting: N/A | Focus: N/A")
+            text = (
+                "Final Score: N/A | Position: N/A | Angle: N/A | Sharpness: N/A\n"
+                "Brightness: N/A | Colorfulness: N/A | Contrast: N/A | Noisiness: N/A\n"
+            )
+            self.score_label.setText(text)
 
     def update_lighting(self):
 
