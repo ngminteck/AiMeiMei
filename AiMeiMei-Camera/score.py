@@ -269,7 +269,7 @@ def calculate_photo_score(frame, objects):
     if objects:
         focus_object = max(objects, key=lambda obj: obj["confidence"], default=None)
         if focus_object:
-            position_score = calculate_position_score(focus_object, w, h, None)
+            position_score = calculate_position_score(focus_object, w, h)
             if position_score < 5:
                 feedback.append("Subject placement could improve.")
                 if focus_object:

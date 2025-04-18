@@ -3,7 +3,7 @@ import numpy as np
 from ultralytics import YOLO
 
 # Use YOLOv8x for improved detection capabilities
-model = YOLO("yolo11l.pt")
+model = YOLO("yolov8x.pt")
 
 # Parameters for grouping
 DISTANCE_THRESHOLD = 30000  # Maximum center distance in pixels
@@ -37,6 +37,8 @@ def detect_objects(frame):
         for box in result.boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0])
             confidence = float(box.conf[0])
+            if confidence < 0.7:
+                continue
             # Extract label if available (assumes box.cls exists)
             class_id = int(box.cls[0]) if hasattr(box, 'cls') else None
             label = model.names[class_id] if class_id is not None and hasattr(model, 'names') else "object"
@@ -135,7 +137,7 @@ def draw_bounding_box(frame, group):
     red = (0, 0, 255)  # For the grouped (focus) box
 
     # Scale factor for individual (blue) boxes to be smaller
-    scale_factor = 0.8
+    scale_factor = 0.99
 
     for member in group.get("members", []):
         bx1, by1, bx2, by2 = member["bbox"]
